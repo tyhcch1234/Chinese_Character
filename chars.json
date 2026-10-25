@@ -1,16 +1,593 @@
 [
  {
-  "char": "思",
+  "char": "敏",
+  "structure": "左右結構",
+  "radical": "攴（攵）",
+  "parts": [
+   {
+    "name": "每",
+    "role": "part"
+   },
+   {
+    "name": "攵",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "終",
+  "structure": "左右結構",
+  "radical": "糸（糹）",
+  "parts": [
+   {
+    "name": "糸",
+    "role": "radical"
+   },
+   {
+    "name": "冬",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "於",
+  "structure": "左右結構",
+  "radical": "方",
+  "parts": [
+   {
+    "name": "方",
+    "role": "radical"
+   },
+   {
+    "name": "仒",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "操",
+  "structure": "左右結構",
+  "radical": "手（扌）",
+  "parts": [
+   {
+    "name": "扌",
+    "role": "radical"
+   },
+   {
+    "name": "喿",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "場",
+  "structure": "左右結構",
+  "radical": "土",
+  "parts": [
+   {
+    "name": "土",
+    "role": "radical"
+   },
+   {
+    "name": "昜",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "籃",
+  "structure": "上下結構",
+  "radical": "竹（⺮）",
+  "parts": [
+   {
+    "name": "竹",
+    "role": "radical"
+   },
+   {
+    "name": "監",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "球",
+  "structure": "左右結構",
+  "radical": "玉（王）",
+  "parts": [
+   {
+    "name": "王",
+    "role": "radical"
+   },
+   {
+    "name": "求",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "架",
+  "structure": "上下結構",
+  "radical": "木",
+  "parts": [
+   {
+    "name": "加",
+    "role": "part"
+   },
+   {
+    "name": "木",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "找",
+  "structure": "左右結構",
+  "radical": "手（扌）",
+  "parts": [
+   {
+    "name": "扌",
+    "role": "radical"
+   },
+   {
+    "name": "戈",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "錶",
+  "structure": "左右結構",
+  "radical": "金",
+  "parts": [
+   {
+    "name": "金",
+    "role": "radical"
+   },
+   {
+    "name": "表",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "喜",
+  "structure": "上中下結構",
+  "radical": "口",
+  "parts": [
+   {
+    "name": "士",
+    "role": "part"
+   },
+   {
+    "name": "口",
+    "role": "part2"
+   },
+   {
+    "name": "䒑一",
+    "role": "part3"
+   },
+   {
+    "name": "口",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "眉",
+  "structure": "兩面包圍（左上）",
+  "radical": "目",
+  "parts": [
+   {
+    "name": "眉",
+    "role": "part"
+   },
+   {
+    "name": "目",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "梢",
+  "structure": "左右結構",
+  "radical": "木",
+  "parts": [
+   {
+    "name": "木",
+    "role": "radical"
+   },
+   {
+    "name": "肖",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "拿",
+  "structure": "上下結構",
+  "radical": "手",
+  "parts": [
+   {
+    "name": "合",
+    "role": "part"
+   },
+   {
+    "name": "手",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "幫",
+  "structure": "上下結構",
+  "radical": "巾",
+  "parts": [
+   {
+    "name": "封",
+    "role": "part"
+   },
+   {
+    "name": "帛（白＋巾）",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "助",
+  "structure": "左右結構",
+  "radical": "力",
+  "parts": [
+   {
+    "name": "且",
+    "role": "part"
+   },
+   {
+    "name": "力",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "帶",
+  "structure": "上下結構",
+  "radical": "巾",
+  "parts": [
+   {
+    "name": "卅冖",
+    "role": "part"
+   },
+   {
+    "name": "巾",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "焦",
+  "structure": "上下結構",
+  "radical": "火（灬）",
+  "parts": [
+   {
+    "name": "隹",
+    "role": "part"
+   },
+   {
+    "name": "灬",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "急",
   "structure": "上下結構",
   "radical": "心",
   "parts": [
    {
-    "name": "田",
+    "name": "⺈彐",
     "role": "part"
    },
    {
     "name": "心",
     "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "慰",
+  "structure": "上下結構",
+  "radical": "心",
+  "parts": [
+   {
+    "name": "尉",
+    "role": "part"
+   },
+   {
+    "name": "心",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "慚",
+  "structure": "左右結構",
+  "radical": "心（忄）",
+  "parts": [
+   {
+    "name": "忄",
+    "role": "radical"
+   },
+   {
+    "name": "斬",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "愧",
+  "structure": "左右結構",
+  "radical": "心（忄）",
+  "parts": [
+   {
+    "name": "忄",
+    "role": "radical"
+   },
+   {
+    "name": "鬼",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "面",
+  "structure": "獨體字",
+  "radical": "面",
+  "parts": [
+   {
+    "name": "面",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "耳",
+  "structure": "獨體字",
+  "radical": "耳",
+  "parts": [
+   {
+    "name": "耳",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "赤",
+  "structure": "上下結構",
+  "radical": "赤",
+  "parts": [
+   {
+    "name": "土",
+    "role": "part"
+   },
+   {
+    "name": "灬",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "温",
+  "structure": "左右結構",
+  "radical": "水（氵）",
+  "parts": [
+   {
+    "name": "氵",
+    "role": "radical"
+   },
+   {
+    "name": "昷",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "暖",
+  "structure": "左右結構",
+  "radical": "日",
+  "parts": [
+   {
+    "name": "日",
+    "role": "radical"
+   },
+   {
+    "name": "爰",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "興",
+  "structure": "上下結構",
+  "radical": "臼",
+  "parts": [
+   {
+    "name": "舁同",
+    "role": "radical"
+   },
+   {
+    "name": "八",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "采",
+  "structure": "上下結構",
+  "radical": "爪（爫）",
+  "parts": [
+   {
+    "name": "爫",
+    "role": "radical"
+   },
+   {
+    "name": "木",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "烈",
+  "structure": "上下結構",
+  "radical": "火（灬）",
+  "parts": [
+   {
+    "name": "列",
+    "role": "part"
+   },
+   {
+    "name": "灬",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "跌",
+  "structure": "左右結構",
+  "radical": "足",
+  "parts": [
+   {
+    "name": "足",
+    "role": "radical"
+   },
+   {
+    "name": "失",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "倒",
+  "structure": "左右結構",
+  "radical": "人（亻）",
+  "parts": [
+   {
+    "name": "亻",
+    "role": "radical"
+   },
+   {
+    "name": "到",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "默",
+  "structure": "左右結構",
+  "radical": "黑",
+  "parts": [
+   {
+    "name": "黑",
+    "role": "radical"
+   },
+   {
+    "name": "犬",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "作",
+  "structure": "左右結構",
+  "radical": "人（亻）",
+  "parts": [
+   {
+    "name": "亻",
+    "role": "radical"
+   },
+   {
+    "name": "乍",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "聲",
+  "structure": "上下結構",
+  "radical": "耳",
+  "parts": [
+   {
+    "name": "殸",
+    "role": "part"
+   },
+   {
+    "name": "耳",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "貪",
+  "structure": "上下結構",
+  "radical": "貝",
+  "parts": [
+   {
+    "name": "今",
+    "role": "part"
+   },
+   {
+    "name": "貝",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "玩",
+  "structure": "左右結構",
+  "radical": "玉（王）",
+  "parts": [
+   {
+    "name": "王",
+    "role": "radical"
+   },
+   {
+    "name": "元",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "垂",
+  "structure": "獨體字",
+  "radical": "土",
+  "parts": [
+   {
+    "name": "垂",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "喪",
+  "structure": "獨體字",
+  "radical": "口",
+  "parts": [
+   {
+    "name": "喪",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "氣",
+  "structure": "兩面包圍（右上）",
+  "radical": "气",
+  "parts": [
+   {
+    "name": "气",
+    "role": "radical"
+   },
+   {
+    "name": "米",
+    "role": "part"
    }
   ]
  }
