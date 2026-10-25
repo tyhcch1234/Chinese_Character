@@ -120,6 +120,7 @@ def clean(path, parts):
 # vertical one.  (char, axis, position, part_index held above the frontier)
 HARD = {
     "思": ("y", 0.56, 1),      # 田 above, 心 below
+    "湖": ("x", 0.30, 1),      # 氵 left, 古+月 right
 }
 
 
@@ -135,12 +136,15 @@ def _hard_clip(path, parts, rule):
     else:
         sel[:, int(round(cut * w)):] = True
     keep = np.ones((h, w), bool) if False else None
-    lower = alpha & sel          # ink below the frontier
-    upper = alpha & ~sel         # ink above the frontier
+    # One-way sweep: above the frontier only the upper component may appear.  The
+    # lower component's ink never reaches up there, so nothing legitimate moves -
+    # and the upper component's own tips that hang below the frontier are left
+    # alone.
+    upper = alpha & ~sel
     col_upper = COLORS[parts[idx - 1]["role"]]
-    col_lower = COLORS[parts[idx]["role"]]
-    rgba[upper, 0], rgba[upper, 1], rgba[upper, 2] = col_upper
-    rgba[lower, 0], rgba[lower, 1], rgba[lower, 2] = col_lower
+    rgb = rgba[:, :, :3].astype(int)
+    foreign = upper & (np.abs(rgb - np.array(col_upper, int)).sum(2) >= 60)
+    rgba[foreign, 0], rgba[foreign, 1], rgba[foreign, 2] = col_upper
     Image.fromarray(rgba, "RGBA").quantize(colors=32, method=Image.FASTOCTREE).save(
         path, optimize=True)
 
