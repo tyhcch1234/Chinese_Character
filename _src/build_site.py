@@ -1,0 +1,375 @@
+# -*- coding: utf-8 -*-
+"""Assemble index.html from chars.json / examples.json."""
+import json
+
+chars = json.load(open("chars.json"))
+examples = json.load(open("examples.json"))
+
+COLOUR = {"radical": "#c0392b", "part": "#2b6cb0", "part2": "#2f855a", "part3": "#b7791f"}
+ROLE_TAG = {"radical": "部首", "part": "部件", "part2": "部件", "part3": "部件"}
+
+STRUCT_NOTE = {
+    "獨體字": "只有一個部件，不能再拆。",
+    "左右結構": "左右並排，各佔一邊。",
+    "左中右結構": "三部分由左至右排列。",
+    "上下結構": "上下相疊。",
+    "上中下結構": "三部分由上至下相疊。",
+    "品字形結構": "上一個、下兩個，形如「品」字。",
+    "全包圍結構": "外框四面圍住內部件。",
+    "三面包圍結構": "上、左、右三面包住內部件。",
+    "兩面包圍結構": "上、左（或上、右）兩面包住內部件。",
+}
+
+
+def img_path(ch, folder):
+    return f"assets/{folder}/{ord(ch):05d}.png"
+
+
+def part_list(item):
+    out = []
+    for p in item["parts"]:
+        c = COLOUR[p["role"]]
+        out.append(
+            f'<li><span class="dot" style="background:{c}"></span>'
+            f'<span class="pname">{p["name"]}</span>'
+            f'<span class="ptag">{ROLE_TAG[p["role"]]}</span></li>'
+        )
+    return "".join(out)
+
+
+# ---------- examples ----------
+ex_cards = []
+for i, item in enumerate(examples):
+    ex_cards.append(f"""
+      <article class="ex-card">
+        <div class="ex-glyph"><img src="{img_path(item['char'], 'examples')}" alt="「{item['char']}」{item['structure']}" width="800" height="800" loading="lazy"></div>
+        <h3>{item['structure']}</h3>
+        <p class="ex-note">{STRUCT_NOTE.get(item['structure'], '')}</p>
+        <div class="ex-sample">例字　<b>{item['char']}</b>　<span class="rad">部首：{item['radical']}</span></div>
+        <ul class="parts">{part_list(item)}</ul>
+      </article>""")
+
+# ---------- main grid ----------
+cards = []
+for i, item in enumerate(chars):
+    group = item["structure"].split("（")[0]
+    cards.append(f"""
+      <article class="card" data-group="{group}" data-i="{i}">
+        <button class="glyph" type="button" aria-label="放大「{item['char']}」">
+          <img src="{img_path(item['char'], 'chars')}" alt="「{item['char']}」部件分色圖" width="800" height="800" loading="lazy">
+        </button>
+        <div class="card-body">
+          <div class="card-head">
+            <span class="ch">{item['char']}</span>
+            <span class="badge">{item['structure']}</span>
+          </div>
+          <div class="rad">部首：{item['radical']}</div>
+          <ul class="parts">{part_list(item)}</ul>
+        </div>
+      </article>""")
+
+groups = ["全部"] + sorted({c["structure"].split("（")[0] for c in chars},
+                           key=lambda s: ["左右結構", "上下結構", "上中下結構", "兩面包圍", "獨體字"].index(s)
+                           if s in ["左右結構", "上下結構", "上中下結構", "兩面包圍", "獨體字"] else 99)
+filters = "".join(
+    f'<button class="chip{" is-on" if g == "全部" else ""}" data-filter="{g}">{g}</button>'
+    for g in groups)
+
+data_js = json.dumps(chars, ensure_ascii=False)
+
+HTML = """<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>漢字部件拆解｜源流明體</title>
+<link rel="preload" href="assets/GenRyuMin-subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23232019'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle' fill='%23fffdf7' font-family='serif'%3E%E5%AD%97%3C/text%3E%3C/svg%3E">
+<meta name="description" content="以源流明體示範漢字字形結構：按部首與部件分色，涵蓋獨體、左右、上下、左中右、上中下、品字形、全包圍、三面包圍、兩面包圍。">
+<style>
+@font-face{
+  font-family:"GenRyuMin";
+  src:url("assets/GenRyuMin-subset.woff2") format("woff2");
+  font-weight:400;font-style:normal;font-display:swap;
+}
+:root{
+  --ink:#232019;--ink-soft:#6b6155;--paper:#fffdf7;--card:#fffefa;--line:#e7ddcb;
+  --rad:#c0392b;--p1:#2b6cb0;--p2:#2f855a;--p3:#b7791f;
+  --shadow:0 1px 2px rgba(60,48,30,.05),0 8px 24px -12px rgba(60,48,30,.18);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:
+    radial-gradient(1200px 600px at 15% -10%, #fdf3e2 0%, rgba(253,243,226,0) 60%),
+    radial-gradient(900px 500px at 95% 0%, #f2f6fb 0%, rgba(242,246,251,0) 55%),
+    var(--paper);
+  color:var(--ink);
+  font-family:"GenRyuMin","Songti TC","Noto Serif TC","PMingLiU",serif;
+  font-size:17px;line-height:1.75;letter-spacing:.01em;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+
+/* header */
+.topbar{position:sticky;top:0;z-index:40;backdrop-filter:saturate(1.2) blur(10px);
+  background:rgba(255,253,247,.86);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+.brand{display:flex;align-items:center;gap:10px;font-size:19px;letter-spacing:.14em}
+.brand .mark{display:grid;place-items:center;width:30px;height:30px;border:1.5px solid var(--ink);
+  border-radius:8px;font-size:15px;letter-spacing:0}
+.nav{display:flex;gap:22px;font-size:14.5px;letter-spacing:.08em}
+.nav a{color:var(--ink-soft);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:2px}
+.nav a:hover{color:var(--ink);border-color:var(--ink)}
+
+/* hero */
+.hero{padding:64px 0 26px}
+.kicker{font-size:13px;letter-spacing:.32em;color:var(--rad);margin:0 0 14px}
+.hero h1{margin:0;font-size:clamp(34px,5.6vw,62px);line-height:1.22;letter-spacing:.06em;font-weight:400}
+.hero h1 em{font-style:normal;color:var(--p1)}
+.hero p.lead{max-width:52em;margin:20px 0 0;color:#4a4238;font-size:17px}
+.rule{height:1px;background:linear-gradient(90deg,var(--ink) 0 60px,var(--line) 60px 100%);margin:34px 0 0}
+
+/* method */
+.methods{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));margin:30px 0 0}
+.m{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;box-shadow:var(--shadow)}
+.m .no{font-size:12.5px;letter-spacing:.24em;color:var(--ink-soft)}
+.m h3{margin:6px 0 8px;font-size:18px;font-weight:400;letter-spacing:.08em}
+.m p{margin:0;font-size:14.6px;color:#574e43;line-height:1.8}
+.m b{font-weight:400;color:var(--ink);border-bottom:1px solid #d8c9ad}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;margin:22px 0 0;font-size:14.5px;color:#4a4238}
+.legend span.item{display:inline-flex;align-items:center;gap:8px}
+.dot{width:13px;height:13px;border-radius:4px;display:inline-block;flex:0 0 auto}
+
+/* section head */
+.sec{padding:54px 0 0}
+.sec-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.sec-head h2{margin:0;font-size:clamp(22px,3vw,30px);font-weight:400;letter-spacing:.1em}
+.sec-head .num{font-size:13px;letter-spacing:.24em;color:var(--ink-soft)}
+.sec-sub{margin:8px 0 24px;color:var(--ink-soft);font-size:14.6px;letter-spacing:.02em}
+
+/* examples */
+.ex-grid{display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.ex-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.ex-grid{grid-template-columns:1fr}}
+.ex-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px 16px;box-shadow:var(--shadow)}
+.ex-glyph{background:#fbf7ec;border-radius:10px;padding:8px}
+.ex-glyph img{display:block;width:100%;height:auto}
+.ex-card h3{margin:12px 0 2px;font-size:16.5px;font-weight:400;letter-spacing:.1em}
+.ex-note{margin:0;font-size:13.4px;color:var(--ink-soft);line-height:1.65}
+.ex-sample{margin-top:6px;font-size:13.4px;color:#4a4238}
+.ex-sample b{font-size:20px;font-weight:400;letter-spacing:0}
+
+/* filters */
+.filters{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 20px}
+.chip{font-family:inherit;font-size:14px;letter-spacing:.06em;color:#4a4238;background:#fff;
+  border:1px solid var(--line);border-radius:999px;padding:7px 16px;cursor:pointer;transition:.18s}
+.chip:hover{border-color:#cbbda3}
+.chip.is-on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+/* cards */
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(198px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  box-shadow:var(--shadow);transition:transform .2s ease,box-shadow .2s ease}
+.card:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(60,48,30,.06),0 16px 34px -18px rgba(60,48,30,.28)}
+.card.hide{display:none}
+.glyph{display:block;width:100%;padding:14px 14px 6px;background:transparent;border:0;cursor:zoom-in;font:inherit}
+.glyph img{display:block;width:100%;height:auto}
+.card-body{padding:2px 16px 15px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ch{font-size:26px;letter-spacing:.02em}
+.badge{font-size:11.5px;letter-spacing:.1em;color:#5c5347;background:#f4eee1;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.rad{font-size:12.6px;color:var(--ink-soft);margin-top:2px;letter-spacing:.03em}
+.parts{list-style:none;display:flex;flex-wrap:wrap;gap:5px 12px;margin:9px 0 0;padding:0;font-size:12.6px;color:#4a4238}
+.parts li{display:inline-flex;align-items:center;gap:6px}
+.parts .dot{width:10px;height:10px;border-radius:3px}
+.parts .ptag{color:#9a8f7d;font-size:11px}
+
+/* lightbox */
+.lb{position:fixed;inset:0;z-index:80;display:none;place-items:center;padding:24px;
+  background:rgba(35,32,25,.55);backdrop-filter:blur(4px)}
+.lb.open{display:grid}
+.lb-inner{width:min(760px,100%);background:var(--paper);border-radius:18px;padding:20px 22px 22px;
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.5);animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.97);opacity:.6}to{transform:scale(1);opacity:1}}
+.lb-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.lb-top .t{font-size:14px;letter-spacing:.18em;color:var(--ink-soft)}
+.lb-close{font-family:inherit;font-size:14px;background:#fff;border:1px solid var(--line);border-radius:999px;
+  padding:5px 14px;cursor:pointer;color:#4a4238}
+.lb-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:center;margin-top:12px}
+.lb-img{background:#fbf7ec;border-radius:14px;padding:12px}
+.lb-img img{display:block;width:100%;height:auto}
+.lb-info h3{margin:0;font-size:44px;font-weight:400;letter-spacing:.04em}
+.lb-info .meta{margin:6px 0 14px;font-size:13.6px;color:var(--ink-soft)}
+.lb-info .parts{display:block;font-size:14.5px;margin-top:0}
+.lb-info .parts li{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}
+.lb-info .parts li:last-child{border-bottom:0}
+.lb-info .pname{font-size:20px;letter-spacing:.04em}
+.lb-info .ptag{margin-left:auto;font-size:11.5px}
+
+/* footer */
+footer{margin-top:70px;border-top:1px solid var(--line);padding:30px 0 46px;color:var(--ink-soft);font-size:13.4px}
+footer .row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{color:var(--p1);text-decoration:none;border-bottom:1px solid rgba(43,108,176,.3)}
+
+@media (max-width:720px){
+  .lb-grid{grid-template-columns:1fr}
+  .hero{padding:40px 0 18px}
+  .nav{display:none}
+}
+@media print{
+  .topbar,.filters,.lb,footer .row a{display:none}
+  body{background:#fff}
+  .grid{grid-template-columns:repeat(4,1fr)}
+  .card,.ex-card{break-inside:avoid;box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><span class="mark">字</span>漢字部件拆解</div>
+    <nav class="nav">
+      <a href="#structure">字形結構</a>
+      <a href="#words">詞語拆解</a>
+      <a href="#about">關於</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="kicker">部首 ・ 部件 ・ 字形結構</p>
+    <h1>把一個字，<em>拆開</em>來看</h1>
+    <p class="lead">同一個漢字，按字形結構切成部件，再為每個部件上色。紅色的部件帶有部首，藍、綠、橙是其餘部件。全部字形均以「源流明體」繪製，方便對照筆畫與結構。</p>
+
+    <div class="methods">
+      <div class="m">
+        <div class="no">方法 一</div>
+        <h3>字型</h3>
+        <p>全站採用開源字型<b>源流明體</b>（GenRyuMin），筆畫起收有粗細變化，結構清晰。</p>
+      </div>
+      <div class="m">
+        <div class="no">方法 二</div>
+        <h3>顏色</h3>
+        <p>按<b>部首及部件</b>分色：哪一筆屬於哪個部件，一目了然。</p>
+      </div>
+      <div class="m">
+        <div class="no">方法 三</div>
+        <h3>結構</h3>
+        <p>依<b>字形結構</b>切割：獨體、左右、上下、左中右、上中下、品字形、全包圍、三面包圍、兩面包圍。</p>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="item"><span class="dot" style="background:#c0392b"></span>部首所在部件</span>
+      <span class="item"><span class="dot" style="background:#2b6cb0"></span>部件</span>
+      <span class="item"><span class="dot" style="background:#2f855a"></span>部件</span>
+      <span class="item"><span class="dot" style="background:#b7791f"></span>部件</span>
+    </div>
+    <div class="rule"></div>
+  </section>
+
+  <section class="sec" id="structure">
+    <div class="sec-head"><span class="num">01</span><h2>字形結構</h2></div>
+    <p class="sec-sub">九種常見結構，每種附一個示範字。點按下方詞語卡可放大細看。</p>
+    <div class="ex-grid">__EXAMPLES__</div>
+  </section>
+
+  <section class="sec" id="words">
+    <div class="sec-head"><span class="num">02</span><h2>詞語拆解</h2></div>
+    <p class="sec-sub">四十個字，依結構分類。點按字形可放大，並可用鍵盤 ← → 切換。</p>
+    <div class="filters" role="group" aria-label="依結構篩選">__FILTERS__</div>
+    <div class="grid" id="grid">__CARDS__</div>
+  </section>
+</main>
+
+<footer id="about">
+  <div class="wrap row">
+    <div>字形：<a href="https://github.com/ButTaiwan/genryu-font" target="_blank" rel="noopener">源流明體 GenRyuMin</a>（SIL Open Font License 1.1）</div>
+    <div>部件分色：依字形結構自動切割，僅供教學參考</div>
+  </div>
+</footer>
+
+<div class="lb" id="lb" aria-hidden="true">
+  <div class="lb-inner" role="dialog" aria-modal="true" aria-label="字形放大">
+    <div class="lb-top">
+      <span class="t">部件拆解</span>
+      <button class="lb-close" id="lbClose" type="button">關閉 Esc</button>
+    </div>
+    <div class="lb-grid">
+      <div class="lb-img"><img id="lbImg" src="" alt=""></div>
+      <div class="lb-info">
+        <h3 id="lbChar"></h3>
+        <div class="meta" id="lbMeta"></div>
+        <ul class="parts" id="lbParts"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = __DATA__;
+const COLOUR = {radical:"#c0392b", part:"#2b6cb0", part2:"#2f855a", part3:"#b7791f"};
+const TAG = {radical:"部首", part:"部件", part2:"部件", part3:"部件"};
+
+/* filters */
+document.querySelectorAll(".chip").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".chip").forEach(b => b.classList.toggle("is-on", b === btn));
+    const f = btn.dataset.filter;
+    document.querySelectorAll(".card").forEach(c => {
+      c.classList.toggle("hide", f !== "全部" && c.dataset.group !== f);
+    });
+  });
+});
+
+/* lightbox */
+const lb = document.getElementById("lb");
+const lbImg = document.getElementById("lbImg");
+const lbChar = document.getElementById("lbChar");
+const lbMeta = document.getElementById("lbMeta");
+const lbParts = document.getElementById("lbParts");
+let cur = 0;
+
+function show(i){
+  cur = (i + DATA.length) % DATA.length;
+  const d = DATA[cur];
+  lbImg.src = `assets/chars/${String(d.char.codePointAt(0)).padStart(5,"0")}.png`;
+  lbImg.alt = `「${d.char}」部件分色圖`;
+  lbChar.textContent = d.char;
+  lbMeta.textContent = `${d.structure}　·　部首：${d.radical}`;
+  lbParts.innerHTML = d.parts.map(p =>
+    `<li><span class="dot" style="background:${COLOUR[p.role]}"></span><span class="pname">${p.name}</span><span class="ptag">${TAG[p.role]}</span></li>`
+  ).join("");
+  lb.classList.add("open");
+  lb.setAttribute("aria-hidden","false");
+}
+function close(){
+  lb.classList.remove("open");
+  lb.setAttribute("aria-hidden","true");
+}
+document.querySelectorAll(".card .glyph").forEach((b, idx) => {
+  b.addEventListener("click", () => show(Number(b.closest(".card").dataset.i)));
+});
+document.getElementById("lbClose").addEventListener("click", close);
+lb.addEventListener("click", e => { if (e.target === lb) close(); });
+document.addEventListener("keydown", e => {
+  if (!lb.classList.contains("open")) return;
+  if (e.key === "Escape") close();
+  if (e.key === "ArrowRight") show(cur + 1);
+  if (e.key === "ArrowLeft") show(cur - 1);
+});
+</script>
+</body>
+</html>
+"""
+
+HTML = (HTML.replace("__EXAMPLES__", "".join(ex_cards))
+            .replace("__FILTERS__", filters)
+            .replace("__CARDS__", "".join(cards))
+            .replace("__DATA__", data_js))
+open("index.html", "w").write(HTML)
+print("index.html", len(HTML), "bytes")

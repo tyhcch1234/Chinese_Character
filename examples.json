@@ -1,0 +1,141 @@
+[
+ {
+  "char": "明",
+  "structure": "左右結構",
+  "radical": "日",
+  "parts": [
+   {
+    "name": "日",
+    "role": "radical"
+   },
+   {
+    "name": "月",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "湖",
+  "structure": "左中右結構",
+  "radical": "水（氵）",
+  "parts": [
+   {
+    "name": "氵",
+    "role": "radical"
+   },
+   {
+    "name": "古",
+    "role": "part"
+   },
+   {
+    "name": "月",
+    "role": "part2"
+   }
+  ]
+ },
+ {
+  "char": "思",
+  "structure": "上下結構",
+  "radical": "心",
+  "parts": [
+   {
+    "name": "田",
+    "role": "part"
+   },
+   {
+    "name": "心",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "意",
+  "structure": "上中下結構",
+  "radical": "心",
+  "parts": [
+   {
+    "name": "音",
+    "role": "part"
+   },
+   {
+    "name": "心",
+    "role": "radical"
+   }
+  ]
+ },
+ {
+  "char": "品",
+  "structure": "品字形結構",
+  "radical": "口",
+  "parts": [
+   {
+    "name": "口",
+    "role": "radical"
+   },
+   {
+    "name": "口",
+    "role": "part"
+   },
+   {
+    "name": "口",
+    "role": "part2"
+   }
+  ]
+ },
+ {
+  "char": "國",
+  "structure": "全包圍結構",
+  "radical": "囗",
+  "parts": [
+   {
+    "name": "囗",
+    "role": "radical"
+   },
+   {
+    "name": "或",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "閃",
+  "structure": "三面包圍結構",
+  "radical": "門",
+  "parts": [
+   {
+    "name": "門",
+    "role": "radical"
+   },
+   {
+    "name": "人",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "病",
+  "structure": "兩面包圍結構",
+  "radical": "疒",
+  "parts": [
+   {
+    "name": "疒",
+    "role": "radical"
+   },
+   {
+    "name": "丙",
+    "role": "part"
+   }
+  ]
+ },
+ {
+  "char": "永",
+  "structure": "獨體字",
+  "radical": "水",
+  "parts": [
+   {
+    "name": "永",
+    "role": "radical"
+   }
+  ]
+ }
+]

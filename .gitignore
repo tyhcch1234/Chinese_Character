@@ -1,0 +1,5 @@
+_font/
+*_pycache__/
+*.zip
+standalone.html
+publish/
