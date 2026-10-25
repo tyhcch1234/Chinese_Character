@@ -207,11 +207,41 @@ def assign_parts(ch, structure, parts, data, mask, dist):
         return part_of
 
     axis = 0 if ("左右" in structure or "左中右" in structure) else 1
-    order = np.argsort(cent[:, axis])
-    groups = split_1d(cent[order, axis], k)
-    for gi, g in enumerate(groups, start=1):
-        for j in g:
-            part_of[int(order[j])] = gi
+    need = max(1, min(2, k - 1))
+    ln = lanes(mask, "x" if axis == 0 else "y")[:need]
+    span = mask.shape[1] if axis == 0 else mask.shape[0]
+
+    if len(ln) == k - 1:
+        # 走廊帶分組：每一件必須完整落在同一條帶內，與 P4 的分界一致。
+        edges = [0.0] + list(ln) + [1.0]
+        bounds = [(edges[i] * span, edges[i + 1] * span) for i in range(len(edges) - 1)]
+        owner0 = np.argmin(dist, axis=0)
+        for i in range(n):
+            m = (owner0 == i) & mask
+            if m.any():
+                ys, xs = np.nonzero(m)
+                lo = (xs.min() if axis == 0 else ys.min())
+                hi = (xs.max() if axis == 0 else ys.max())
+            else:
+                lo = hi = (cent[i, axis])
+            best, best_ov = 1, -1.0
+            for bi, (a, b) in enumerate(bounds, start=1):
+                ov = max(0.0, min(hi, b) - max(lo, a))
+                if ov > best_ov:
+                    best, best_ov = bi, ov
+            part_of[i] = best
+        if len(set(part_of.tolist())) < k:      # 有帶空了 → 退回 DP
+            part_of[:] = 1
+            order = np.argsort(cent[:, axis])
+            for gi, g in enumerate(split_1d(cent[order, axis], k), start=1):
+                for j in g:
+                    part_of[int(order[j])] = gi
+    else:
+        order = np.argsort(cent[:, axis])
+        groups = split_1d(cent[order, axis], k)
+        for gi, g in enumerate(groups, start=1):
+            for j in g:
+                part_of[int(order[j])] = gi
 
     # 部首必須整組落在同一個部件（P5：身分聽筆畫資料）
     if rad and len(rad) < n:
@@ -351,6 +381,34 @@ def main():
         print("checked %d, failing %d" % (len(rows), len(bad)))
         for ch, m in bad[:15]:
             print("  %s seam=%d islands=%d cov=%d" % (ch, m["seam_px"], m["islands"], m["coverage"]))
+        return
+
+    if args[0] == "--ab":
+        outdir = args[1]
+        os.makedirs(outdir, exist_ok=True)
+        rows = []
+        for rec in items:
+            ch, structure, parts = rec[0], rec[1], rec[3]
+            folder = "chars" if rec in bp.DATA else "examples"
+            old_path = "assets/%s/%05d.png" % (folder, ord(ch))
+            new_path = os.path.join(outdir, "%05d.png" % ord(ch))
+            if not os.path.exists(old_path):
+                continue
+            if not os.path.exists(new_path):
+                render(ch, structure, parts, new_path)
+            mo = quick_metrics(old_path, parts)
+            mn = quick_metrics(new_path, parts)
+            rows.append((ch, mo, mn))
+        worse = [r for r in rows if r[2]["seam_px"] > r[1]["seam_px"] + 40]
+        better = [r for r in rows if r[2]["seam_px"] + 40 < r[1]["seam_px"]]
+        print("chars %d | seam better %d worse %d" % (len(rows), len(better), len(worse)))
+        for ch in ("思", "湖", "幫", "國", "病", "喜", "架", "籃"):
+            r = next((x for x in rows if x[0] == ch), None)
+            if r:
+                print("  %s old seam %3d -> new %3d | islands %d -> %d" % (
+                    ch, r[1]["seam_px"], r[2]["seam_px"],
+                    r[1]["islands"], r[2]["islands"]))
+        print("worse list:", " ".join(r[0] for r in worse) or "-")
         return
 
     if args[0] == "--build":
