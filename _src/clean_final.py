@@ -114,6 +114,37 @@ def clean(path, parts):
     return changed
 
 
+# A handful of glyphs fuse one component's brush tip into its neighbour so tightly
+# that no pixel-level test separates them.  For those, the structural split is
+# enforced geometrically: 上下結構 uses a horizontal frontier, 左右/左中右 a
+# vertical one.  (char, axis, position, part_index held above the frontier)
+HARD = {
+    "思": ("y", 0.56, 1),      # 田 above, 心 below
+}
+
+
+def _hard_clip(path, parts, rule):
+    axis, cut, idx = rule
+    im = Image.open(path).convert("RGBA")
+    rgba = np.array(im)
+    alpha = rgba[:, :, 3] > 128
+    h, w = alpha.shape
+    sel = np.zeros((h, w), bool)
+    if axis == "y":
+        sel[int(round(cut * h)):, :] = True      # everything BELOW the frontier
+    else:
+        sel[:, int(round(cut * w)):] = True
+    keep = np.ones((h, w), bool) if False else None
+    lower = alpha & sel          # ink below the frontier
+    upper = alpha & ~sel         # ink above the frontier
+    col_upper = COLORS[parts[idx - 1]["role"]]
+    col_lower = COLORS[parts[idx]["role"]]
+    rgba[upper, 0], rgba[upper, 1], rgba[upper, 2] = col_upper
+    rgba[lower, 0], rgba[lower, 1], rgba[lower, 2] = col_lower
+    Image.fromarray(rgba, "RGBA").quantize(colors=32, method=Image.FASTOCTREE).save(
+        path, optimize=True)
+
+
 def run(only=None):
     total = 0
     for folder, meta in (("chars", "chars.json"), ("examples", "examples.json")):
@@ -121,6 +152,10 @@ def run(only=None):
             if only and rec["char"] not in only:
                 continue
             n = clean("assets/%s/%05d.png" % (folder, ord(rec["char"])), rec["parts"])
+            if rec["char"] in HARD:
+                _hard_clip("assets/%s/%05d.png" % (folder, ord(rec["char"])),
+                           rec["parts"], HARD[rec["char"]])
+                print("  %s hard-split applied" % rec["char"])
             if n:
                 print("  %s repaired %d px" % (rec["char"], n))
             total += n
