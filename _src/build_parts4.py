@@ -216,6 +216,21 @@ def colorize(ch, parts, structure="", spans=None):
             if len(pts) > 2:
                 dr.polygon(pts, fill=255)
         m = np.array(layer) > 127
+        # A few glyphs use compound paths (several sub-paths in one stroke); a
+        # naive polygon fill can then balloon a small dot into a shape covering
+        # half the glyph and steal a neighbour's ink.  Rebuild such a mask as a
+        # thick line along the stroke's own centre line instead.
+        med = [(x, BASELINE - y) for x, y in data["medians"][i]]
+        mx = [to_px(p)[0] for p in med]
+        my = [to_px(p)[1] for p in med]
+        ys, xs = np.nonzero(m)
+        if m.any() and (max(xs) - min(xs) > 2.2 * (max(mx) - min(mx)) + 24
+                        or max(ys) - min(ys) > 2.2 * (max(my) - min(my)) + 24):
+            layer = Image.new("L", (W, H), 0)
+            dr = ImageDraw.Draw(layer)
+            pts = densify([to_px(p) for p in med], step=4.0)
+            dr.line(pts, fill=255, width=max(8, int(0.085 * min(W, H))), joint="curve")
+            m = np.array(layer) > 127
         m = ndimage.binary_dilation(m, np.ones((5, 5), bool))
         polys_masks.append(m)
 
@@ -325,43 +340,12 @@ def colorize(ch, parts, structure="", spans=None):
     label_img = np.zeros((H, W), np.uint8)
     label_img[mask] = part_of[owner[mask]]
 
-    # Last step, and the one that actually enforces the rule: the colour of every
-    # pixel is taken from the font's own ink skeleton.  The skeleton is cut into
-    # arcs at its junctions, each arc votes once for a part, and each pixel takes
-    # the part of the nearest arc.  A colour boundary therefore always sits on a
-    # junction or a narrow neck of the glyph as the font draws it - never along
-    # the body of a stroke.
-    from skimage.morphology import skeletonize
-
-    sk = skeletonize(mask)
-    nb = np.ones((3, 3), int)
-    nb[1, 1] = 0
-    deg = ndimage.convolve(sk.astype(np.int16), nb, mode="constant")
-    junction = sk & (deg >= 3)
-    arcs = ndimage.label(sk & ~junction, structure=np.ones((3, 3)))[0]
-    if junction.any():
-        _, idx = ndimage.distance_transform_edt(arcs == 0, return_indices=True)
-        arcmap = arcs.copy()
-        arcmap[junction] = arcs[idx[0][junction], idx[1][junction]]
-    else:
-        arcmap = arcs
-
-    arc_part = {}
-    for a in np.unique(arcmap[sk]):
-        if a <= 0:
-            continue
-        vals, cnt = np.unique(label_img[arcmap == a], return_counts=True)
-        arc_part[int(a)] = int(vals[np.argmax(cnt)])
-
-    _, skn = ndimage.distance_transform_edt(~sk, return_indices=True)
-    nearest_arc = arcmap[skn[0], skn[1]]
-    out_lab = np.zeros_like(label_img)
-    for a, k in arc_part.items():
-        out_lab[mask & (nearest_arc == a)] = k
-    miss = mask & (out_lab == 0)
-    if miss.any():
-        out_lab[miss] = label_img[miss]
-    label_img = out_lab
+    # Colour is taken from the stroke each pixel belongs to, not from its
+    # position, so a stroke and every stroke of a component keep exactly one
+    # colour.  The font's own skeleton is only used to decide *where* two strokes
+    # meet, never which colour a stroke has.
+    label_img = np.zeros((H, W), np.uint8)
+    label_img[mask] = part_of[owner[mask]]
 
     # Remove stray specks: a tiny island of one colour swallowed by another
     # colour is merged into its surroundings, so no stroke shows two colours.
@@ -387,6 +371,96 @@ def colorize(ch, parts, structure="", spans=None):
         if not changed:
             break
 
+    # A narrow tongue of one colour pushing into another component is handed back
+    # to its surroundings (opening radius 4 px is far thinner than any stroke), so
+    # every component reads as one flat colour.
+    st = ndimage.generate_binary_structure(2, 1)
+    for k in range(1, len(parts) + 1):
+        m = label_img == k
+        if not m.any():
+            continue
+        op = ndimage.binary_opening(m, ndimage.iterate_structure(st, 4))
+        lost = m & ~op
+        if lost.sum() == 0 or lost.sum() > 0.25 * m.sum():
+            continue
+        keep = mask & ~lost
+        _, idx = ndimage.distance_transform_edt(~keep, return_indices=True)
+        label_img[lost] = label_img[idx[0][lost], idx[1][lost]]
+
+    # Component purity: a small lobe of one colour that hangs off another colour
+    # (a corner or a tip that the font fuses into its neighbour) is repainted with
+    # that neighbour, so a whole component reads as a single flat colour.  Free
+    # standing bits of a colour (e.g. the separate dots of 心) have no ink
+    # neighbour and are left alone.
+    out8 = np.ones((3, 3), bool)
+    for _ in range(3):
+        changed = False
+        for k in range(1, len(parts) + 1):
+            m = label_img == k
+            tot = int(m.sum())
+            if tot == 0:
+                continue
+            cl, nc = ndimage.label(m, structure=out8)
+            if nc < 2:
+                continue
+            sizes = ndimage.sum(m, cl, range(1, nc + 1))
+            big = int(np.argmax(sizes)) + 1
+            for c in range(1, nc + 1):
+                if c == big:
+                    continue
+                patch = cl == c
+                if sizes[c - 1] > 0.05 * tot:
+                    continue
+                nb = ndimage.binary_dilation(patch, out8) & mask & (label_img != k)
+                if not nb.any():
+                    continue
+                vals, cnt = np.unique(label_img[nb], return_counts=True)
+                if cnt.max() >= 0.6 * cnt.sum():
+                    label_img[patch] = vals[np.argmax(cnt)]
+                    changed = True
+        if not changed:
+            break
+
+    # A detached flake of one colour sitting right inside another component (a
+    # font corner the stroke data does not cover) is repainted with that
+    # component.  Free-standing marks such as the four dots of 心 only ever see
+    # blank paper within reach, so they stay untouched.
+    big_k = np.ones((15, 15), bool)
+    for _ in range(2):
+        for k in range(1, len(parts) + 1):
+            m = label_img == k
+            tot = int(m.sum())
+            if tot == 0:
+                continue
+            cl, nc = ndimage.label(m, structure=out8)
+            if nc < 2:
+                continue
+            sizes = ndimage.sum(m, cl, range(1, nc + 1))
+            order = np.argsort(sizes)
+            keep = set(order[-2:].tolist())
+            for c in order:
+                if c in keep:
+                    continue
+                patch = cl == int(c) + 1
+                if sizes[int(c)] > 0.04 * tot:
+                    continue
+                near = ndimage.binary_dilation(patch, big_k) & mask & (label_img != k)
+                if not near.any():
+                    continue
+                vals, cnt = np.unique(label_img[near], return_counts=True)
+                if cnt.max() >= 0.6 * cnt.sum():
+                    label_img[patch] = vals[np.argmax(cnt)]
+
+    if os.environ.get("PRB"):
+        for i in range(len(dist)):
+            mm = (owner == i) & mask
+            if not mm.any():
+                continue
+            ys, xs = np.nonzero(mm)
+            print("  st%-2d part%d bbox y%3d-%3d x%3d-%3d px%d" % (
+                i + 1, part_of[i], ys.min(), ys.max(), xs.min(), xs.max(), mm.sum()))
+        for (yy, xx) in [(404,600),(420,620),(440,640),(300,620)]:
+            print("  probe", yy, xx, "owner", owner[yy, xx], "ink", bool(mask[yy, xx]))
     rgba = np.zeros((H, W, 4), np.uint8)
     for k, (_, role, _) in enumerate(parts, start=1):
         m = label_img == k
@@ -401,13 +475,64 @@ def colorize(ch, parts, structure="", spans=None):
     return canvas.resize((OUT, OUT), Image.LANCZOS)
 
 
+def final_clean(canvas, parts):
+    """Repaint detached flakes at the delivered resolution.
+
+    A small island of one colour whose ring is mostly another colour is a corner
+    or tip the font fused into the neighbouring component; it is repainted so the
+    whole component reads as one colour.  Free standing marks (the separate dots
+    of 心, 采's 木 tips ...) only see paper around them and are left alone.
+    """
+    rgba = np.array(canvas.convert("RGBA"))
+    rgb = rgba[:, :, :3].astype(int)
+    alpha = rgba[:, :, 3] > 128
+    mask_of = {}
+    for k, (_, role, _) in enumerate(parts, start=1):
+        col = np.array(COLORS[role], int)
+        mask_of[k] = (np.abs(rgb - col).sum(2) < 60) & alpha
+    out8 = ndimage.generate_binary_structure(2, 1)   # 4-connected: a hairline
+    for _ in range(3):                               # bridge does not count
+        for k, m in mask_of.items():
+            tot = int(m.sum())
+            if tot == 0:
+                continue
+            cl, nc = ndimage.label(m, structure=out8)
+            if nc < 2:
+                continue
+            sizes = ndimage.sum(m, cl, range(1, nc + 1))
+            order = np.argsort(sizes)
+            for c in order[:-1]:
+                if sizes[int(c)] > 0.05 * tot:
+                    continue
+                patch = cl == int(c) + 1
+                ring = ndimage.binary_dilation(patch, np.ones((11, 11), bool)) & alpha & ~patch
+                if not ring.any():
+                    continue
+                votes = {}
+                for k2, m2 in mask_of.items():
+                    v = int((ring & m2).sum())
+                    if v:
+                        votes[k2] = v
+                if not votes:
+                    continue
+                best = max(votes, key=votes.get)
+                if votes[best] <= 0.5 * sum(votes.values()) or best == k:
+                    continue
+                col = np.array(COLORS[parts[best - 1][1]], np.uint8)
+                rgba[patch, 0], rgba[patch, 1], rgba[patch, 2] = col
+                mask_of[k] = mask_of[k] & ~patch
+                mask_of[best] = mask_of[best] | patch
+    return Image.fromarray(rgba, "RGBA")
+
+
 def build(items, folder, outfile):
     os.makedirs(folder, exist_ok=True)
     recs = []
     for rec in items:
         ch, struct, radical, parts = rec[0], rec[1], rec[2], rec[3]
         spans = rec[4] if len(rec) > 4 else None
-        colorize(ch, parts, struct, spans).quantize(colors=32, method=Image.FASTOCTREE).save(
+        final_clean(colorize(ch, parts, struct, spans), parts).quantize(
+            colors=32, method=Image.FASTOCTREE).save(
             f"{folder}/{ord(ch):05d}.png", optimize=True)
         recs.append({"char": ch, "structure": struct, "radical": radical,
                      "parts": [{"name": p[0], "role": p[1]} for p in parts]})
@@ -423,3 +548,5 @@ if __name__ == "__main__":
     else:
         build(DATA, "assets/chars", "chars.json")
         build(EXAMPLES, "assets/examples", "examples.json")
+        import clean_final
+        clean_final.run()          # component-purity pass on the delivered PNGs
