@@ -231,6 +231,18 @@ def colorize(ch, parts, structure="", spans=None):
             pts = densify([to_px(p) for p in med], step=4.0)
             dr.line(pts, fill=255, width=max(8, int(0.085 * min(W, H))), joint="curve")
             m = np.array(layer) > 127
+        # A stroke body can never reach far outside its own centre line.  A few
+        # compound paths over-fill and would otherwise cover a neighbouring
+        # component's ink (this is what tinted 田's corner in 思), so clip every
+        # mask to its centre line's box plus a small margin.
+        pad = int(0.07 * min(W, H))
+        y0 = max(0, int(min(my)) - pad)
+        y1 = min(H, int(max(my)) + pad)
+        x0 = max(0, int(min(mx)) - pad)
+        x1 = min(W, int(max(mx)) + pad)
+        clip = np.zeros((H, W), bool)
+        clip[y0:y1, x0:x1] = True
+        m = m & clip
         m = ndimage.binary_dilation(m, np.ones((5, 5), bool))
         polys_masks.append(m)
 

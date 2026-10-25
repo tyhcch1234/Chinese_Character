@@ -57,9 +57,12 @@ def clean(path, parts):
             m = mask_of[k]
             if not m.any():
                 continue
-            op = ndimage.binary_opening(m, FOUR)
+            # radius 2 (5x5 cross) is needed: a seam left by the resize is 2-4 px
+            # wide, so a 3x3 opening still lets it through.  No real stroke is that
+            # thin, so nothing legitimate is lost.
+            op = ndimage.binary_opening(m, ndimage.iterate_structure(FOUR, 2))
             lost = m & ~op
-            if lost.sum() == 0 or lost.sum() > 0.5 * m.sum():
+            if lost.sum() == 0 or lost.sum() > 0.35 * m.sum():
                 continue
             keep = alpha & ~lost
             if not keep.any():
