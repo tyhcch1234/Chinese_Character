@@ -33,9 +33,17 @@ BOX = bp.BOX
 # --------------------------------------------------------------------------- #
 # 幾何：把 hanzi-writer 的筆畫中心線貼到字型墨跡上（P5：字型決定幾何）
 # --------------------------------------------------------------------------- #
+GEOM = "_data/geom"
+
+
 def stroke_field(ch):
-    """回傳 (mask, dist)：mask 為字型墨跡，dist[i] 為到第 i 筆中心線的距離。"""
+    """回傳 (data, mask, dist)：mask 為字型墨跡，dist[i] 為到第 i 筆中心線的距離。"""
+    cache = os.path.join(GEOM, "%05d.npz" % ord(ch))
     data = bp.hanzi_data(ch)
+    if os.path.exists(cache):
+        z = np.load(cache)
+        return data, z["mask"], z["dist"].astype(np.float32)
+
     mask = bp.render_mask(ch)
     H, W = mask.shape
 
@@ -87,6 +95,8 @@ def stroke_field(ch):
             dr.ellipse([p[0] - 0.6, p[1] - 0.6, p[0] + 0.6, p[1] + 0.6], fill=255)
         dist[i] = ndimage.distance_transform_edt(np.array(layer) < 128)
 
+    os.makedirs(GEOM, exist_ok=True)
+    np.savez_compressed(cache, mask=mask, dist=dist.astype(np.float16))
     return data, mask, dist
 
 
@@ -207,7 +217,7 @@ def assign_parts(ch, structure, parts, data, mask, dist):
         return part_of
 
     axis = 0 if ("左右" in structure or "左中右" in structure) else 1
-    need = max(1, min(2, k - 1))
+    need = max(1, min(3, k - 1))
     ln = lanes(mask, "x" if axis == 0 else "y")[:need]
     span = mask.shape[1] if axis == 0 else mask.shape[0]
 
@@ -271,18 +281,18 @@ def assign_parts(ch, structure, parts, data, mask, dist):
 # --------------------------------------------------------------------------- #
 # 繪製：P3 領地 + P6 最近色降取樣
 # --------------------------------------------------------------------------- #
-def render(ch, structure, parts, path=None):
-    data, mask, dist = stroke_field(ch)
-    part_of = assign_parts(ch, structure, parts, data, mask, dist)
-    cent = stroke_centroids(dist, mask)
-    H, W = mask.shape
+def lane_owner(mask, dist, structure, k):
+    """P3+P4：先以走廊把平面分區，再在「本區的筆畫」之間取最近的。
 
-    # P4：k 個部件需要 k-1 條走廊（最多 2 條，再多易取到字內格線的低谷）。
-    need = max(1, min(2, len(parts) - 1))
-    lx = lanes(mask, "x")[:need] if ("左右" in structure or "左中右" in structure
-                                     or "品字" in structure) else []
-    ly = lanes(mask, "y")[:need] if ("上下" in structure or "上中下" in structure
-                                     or "品字" in structure) else []
+    跨走廊的筆畫不能搶另一區的墨跡，所以一筆的領地不會橫越走廊。
+    """
+    H, W = mask.shape
+    nneed = max(1, min(3, k - 1))
+    lx = lanes(mask, "x")[:nneed] if ("左右" in structure or "左中右" in structure
+                                      or "品字" in structure) else []
+    ly = lanes(mask, "y")[:nneed] if ("上下" in structure or "上中下" in structure
+                                      or "品字" in structure) else []
+    cent = stroke_centroids(dist, mask)
 
     def signature(x, y):
         return (tuple(int(x > c * W) for c in lx)
@@ -296,7 +306,7 @@ def render(ch, structure, parts, path=None):
     owner = np.full((H, W), -1, np.int16)
     for sig in px_sig:
         members = [i for i in range(dist.shape[0]) if stro_sig[i] == sig]
-        if not members:                       # 該區沒有筆畫 → 全域最近
+        if not members:
             members = list(range(dist.shape[0]))
         sel = np.ones((H, W), bool)
         for j, c in enumerate(lx):
@@ -306,10 +316,21 @@ def render(ch, structure, parts, path=None):
         d = dist[members]
         sub = np.argmin(d, axis=0)
         owner[sel] = np.array(members)[sub[sel]]
-
     if (owner < 0).any():
         glob = np.argmin(dist, axis=0)
         owner[owner < 0] = glob[owner < 0]
+    return owner, lx, ly
+
+
+def render(ch, structure, parts, path=None):
+    data, mask, dist = stroke_field(ch)
+    part_of = assign_parts(ch, structure, parts, data, mask, dist)
+    cent = stroke_centroids(dist, mask)
+    H, W = mask.shape
+
+    # P4：k 個部件需要 k-1 條走廊（最多 2 條，再多易取到字內格線的低谷）。
+    need = max(1, min(2, len(parts) - 1))
+    owner, lx, ly = lane_owner(mask, dist, structure, len(parts))
 
     lab = np.zeros((H, W), np.uint8)
     lab[mask] = part_of[owner[mask]]

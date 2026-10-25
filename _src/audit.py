@@ -36,7 +36,8 @@ def audit(ch, structure, parts, path):
     H, W = mask.shape
     s = min(OUT / H, OUT / W)
     w, h = max(1, int(W * s)), max(1, int(H * s))
-    o = np.argmin(dist, axis=0).astype(np.uint8)
+    own, _, _ = pa.lane_owner(mask, dist, structure, len(parts))
+    o = np.clip(own, 0, 255).astype(np.uint8)
     box = np.zeros((BOX, BOX), np.uint8)
     box[(BOX - h) // 2:(BOX - h) // 2 + h, (BOX - w) // 2:(BOX - w) // 2 + w] = np.array(
         Image.fromarray(o).resize((w, h), Image.NEAREST))
