@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Assemble index.html from chars.json / examples.json."""
+import hashlib
 import json
 
 chars = json.load(open("chars.json"))
@@ -22,7 +23,14 @@ STRUCT_NOTE = {
 
 
 def img_path(ch, folder):
-    return f"assets/{folder}/{ord(ch):05d}.png"
+    """Image URL carrying a content hash, so a browser or CDN that still holds an
+    older picture is forced to fetch the new one immediately."""
+    rel = f"assets/{folder}/{ord(ch):05d}.png"
+    try:
+        v = hashlib.md5(open(rel, "rb").read()).hexdigest()[:8]
+    except OSError:
+        v = ""
+    return f"{rel}?v={v}" if v else rel
 
 
 def part_list(item):
