@@ -53,19 +53,31 @@ git push -u origin main
 
 ## 重新產生
 
-分色圖不是手繪，而是由字型輪廓計算出來：
-
-1. 用 Pillow 以源流明體把字放大 1800px 點陣化
-2. 以 8 連通標記連筆成「筆畫團」，再按字形結構的區域把每個筆畫團歸入所屬部件
-3. 跨越部件邊界的筆畫團，逐像素按區域分色（邊界落在筆畫最窄處）
-4. 縮至 800px、量化成 32 色 PNG
+分色圖不是手繪，而是由字型輪廓計算出來。目前正式流程是「沿用已驗收的部件分區，只重上色」：
 
 ```bash
-python3 -m pip install pillow numpy scipy fonttools brotli
+python3 -m pip install pillow numpy scipy scikit-image fonttools brotli
 # 先下載 GenRyuMin2TW-otf.zip 解壓到 _font/
-python3 _src/build_parts.py     # 產生 assets/**/*.png、chars.json、examples.json
-python3 _src/build_site.py      # 產生 index.html
+
+python3 _src/reskin.py /tmp/skin      # 以已驗收圖的分區 + 4× 超取樣最近色重上色
+python3 _src/publish_auto.py /tmp/skin # 寫入 assets/ 並重建 index.html（含 content-hash 版號）
 ```
+
+為什麼不直接重算分區：`_src/parts_auto.py`（自動分組）與 `_src/seg.py`（墨跡分水嶺）
+可以做到「一筆一色」，但分組本身在有筆畫相連的字上仍會錯（實測 38 筆／12 字），
+所以已上線的字一律以人已驗收的分區為準。新增字才用 `seg.py`，並人工確認一次身分。
+
+逐字修色與品質檢查：
+
+```bash
+python3 _src/qc.py                 # 畫布層體檢：未上色、色數、內洞細縫
+python3 _src/qc.py --sheet _preview/qc    # 出 10 字對照圖
+python3 _src/qc_stroke.py          # 筆畫層：一筆之內沒有筆畫交叉處的異色塊
+python3 _src/patch_colour.py --dry # 預覽修正規則，再執行套用並重建頁面
+```
+
+`patch_colour.py` 的規則是冪等的，修好後再跑一次每條都是 0 px。
+最近一次複檢的結果見 [docs/qc-2026-10-26.md](docs/qc-2026-10-26.md)，方法與不變量見 [docs/method.md](docs/method.md)。
 
 字型子集：
 
@@ -77,5 +89,7 @@ python3 -m fontTools.subset _font/GenRyuMin2TW-M.otf \
 
 ## 備註
 
-- 部件分色依字形結構自動切割，用於教學示意；少數字（如「幫」「興」「帶」）部件筆畫相連，分界線會落在筆畫最窄處，與傳統字書的部件歸屬可能略有出入。
+- 部件分色依字形結構切割，用於教學示意；少數字（如「幫」「興」「帶」）部件筆畫相連，
+  分界線會落在筆畫最窄處，與傳統字書的部件歸屬可能略有出入。
+- 部件之間筆畫相交處，顏色屬於後寫的那一筆（例如「湖」的提與「古」的一橫），屬正常疊色。
 - 圖檔可自由用於課堂教學。
