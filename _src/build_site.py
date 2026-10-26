@@ -83,6 +83,8 @@ filters = "".join(
     f'<button class="chip{" is-on" if g == "全部" else ""}" data-filter="{g}">{g}</button>'
     for g in groups)
 
+for _c in chars:                      # 大圖也要帶版本號，否則 CDN 會給舊圖
+    _c["img"] = img_path(_c["char"], "chars")
 data_js = json.dumps(chars, ensure_ascii=False)
 
 HTML = """<!DOCTYPE html>
@@ -345,7 +347,7 @@ let cur = 0;
 function show(i){
   cur = (i + DATA.length) % DATA.length;
   const d = DATA[cur];
-  lbImg.src = `assets/chars/${String(d.char.codePointAt(0)).padStart(5,"0")}.png`;
+  lbImg.src = d.img;
   lbImg.alt = `「${d.char}」部件分色圖`;
   lbChar.textContent = d.char;
   lbMeta.textContent = `${d.structure}　·　部首：${d.radical}`;
