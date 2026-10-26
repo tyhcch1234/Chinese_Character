@@ -95,31 +95,31 @@ def stroke_field(ch):
             dr.ellipse([p[0] - 0.6, p[1] - 0.6, p[0] + 0.6, p[1] + 0.6], fill=255)
         dist[i] = ndimage.distance_transform_edt(np.array(layer) < 128)
 
-    # 逐筆輪廓歸屬（P1 的真正依據）：把每一筆自己的外形填色，後畫的蓋先畫的。
-    # 只用最近中心線會在兩筆相鄰處「切邊」——例如「湖」的提會被判給「古」，
-    # 出現一條藍色薄片。用筆畫本身的外形就不會。
-    own = Image.new("I", (W, H), 0)
-    dr_own = ImageDraw.Draw(own)
+    # 逐筆輪廓歸屬：把每一筆自己的 hanzi 外形填色，後畫的蓋先畫的（全局仿射）。
+    # 註：曾嘗試「逐筆縮放＋平移配準」（v9），實測更差——目標區域來自最近中心線的
+    # Voronoi，等於把錯誤分區再放大，混色筆由 61 升至 83，已回退。
+    o0 = np.argmin(dist, axis=0) + 1
+    own_img = Image.new("I", (W, H), 0)
+    dr_own = ImageDraw.Draw(own_img)
     for i, d in enumerate(data["strokes"]):
         for poly in bp.svg_polys(d):
             if len(poly) >= 3:
                 dr_own.polygon([to_px((x, BASELINE - y)) for x, y in poly], fill=i + 1)
-    own = np.array(own, np.int16)
-    if (own[mask] == 0).any():                     # 字型墨跡超出行廓 → 退回最近中心線
-        o0 = (np.argmin(dist, axis=0) + 1).astype(np.int16)
-        own = np.where((own == 0) & mask, o0, own)
+    own = np.array(own_img, np.int16)
+    if (own[mask] == 0).any():
+        own = np.where((own == 0) & mask, o0.astype(np.int16), own)
 
     os.makedirs(GEOM, exist_ok=True)
-    np.savez_compressed(cache, mask=mask, dist=dist.astype(np.float16), own=own)
+    np.savez_compressed(cache, mask=mask, dist=dist.astype(np.float16), own=own,
+                        fit=np.array([s_best, tx, ty, ax, cx, cy], np.float32))
     return data, mask, dist
 
 
 def stroke_own(ch):
     """每一筆的墨跡（1-based；0 = 不屬任何筆）。
 
-    輪廓歸屬之後再加一條爭議區規則：若某像素雖落在第 i 筆輪廓內，但它離另一筆
-    中心線明顯更近（近 2px 以上），就判給那一筆。這是 P5 的落地——字型的筆形
-    比 hanzi 輪廓粗，兩者重疊處要聽字型（例：湖的提右上角不該被判給古的橫）。
+    輪廓歸屬後補一條爭議區規則（P5）：像素雖落在第 i 筆輪廓內，但若離另一筆中心線
+    明顯更近（2px 以上），判給那一筆——字型筆形比 hanzi 輪廓粗，重疊處聽字型。
     """
     stroke_field(ch)
     z = np.load(os.path.join(GEOM, "%05d.npz" % ord(ch)))
@@ -406,6 +406,30 @@ def identity_lock(ch):
     return list(seq) if seq else None
 
 
+SMOOTH = 9          # 標籤平滑窗口（px）：吸收「一筆吃到鄰筆墨跡」造成的薄片
+
+
+def smooth_labels(lab, mask, size=SMOOTH, iters=2):
+    """多數濾波：把比周圍窄的色塊吸回主色。
+
+    逐筆輪廓歸屬會在兩筆相鄰處留下薄片（湖的提被「古」的橫吃到一條）。
+    這些薄片的寬度只有幾 px，而真正屬於某部件的筆畫遠比它寬，所以用「鄰域多數」
+    可以把薄片消掉，又不會移動真正的部件邊界。
+    """
+    if size < 3:
+        return lab
+    from scipy.ndimage import uniform_filter
+    k = int(lab.max())
+    out = lab.copy()
+    for _ in range(iters):
+        scores = np.zeros((k + 1,) + out.shape, np.float32)
+        for i in range(1, k + 1):
+            scores[i] = uniform_filter((out == i).astype(np.float32), size)
+        best = scores.argmax(axis=0).astype(np.uint8)
+        out = np.where(mask, best, out)
+    return out
+
+
 def render(ch, structure, parts, path=None):
     data, mask, dist = stroke_field(ch)
     part_of = assign_parts(ch, structure, parts, data, mask, dist)
@@ -421,25 +445,14 @@ def render(ch, structure, parts, path=None):
     # P4：k 個部件需要 k-1 條分界線；但分界線只用來決定「身分」，
     # 不用來決定顏色區域——顏色一律跟隨筆畫（P1/P3），所以一條線切過長橫
     # 也不會把該筆分成兩色。
-    # 顏色分區：走廊帶 + 帶內最近筆畫（P3/P4）。走廊由筆畫重心分群的中點給出，
-    # 比「切口墨跡最少」穩定——後者會挑到部件內部的假低谷（湖的 0.36）。
-    need = max(1, min(3, len(parts) - 1))
-    axis = 0 if ("左右" in structure or "左中右" in structure) else 1
-    cent = stroke_centroids(dist, mask, None)
-    order = np.argsort(cent[:, axis])
-    groups = split_1d(cent[order, axis], len(parts))
-    span = W if axis == 0 else H
-    cuts_ = []
-    for gi in range(len(groups) - 1):
-        hi_ = cent[order[groups[gi]]][:, axis].max()
-        lo_ = cent[order[groups[gi + 1]]][:, axis].min()
-        cuts_.append(((hi_ + lo_) / 2.0) / span)
-    owner, _, _ = lane_owner(mask, dist, structure, len(parts),
-                             lx=cuts_ if axis == 0 else None,
-                             ly=cuts_ if axis == 1 else None)
+    # 顏色跟隨「該筆自己的墨跡」（P1/P3），不用走廊切區——走廊會把跨帶的筆切成兩色
+    # （實測混色筆 70，比舊圖 66 更差）。
+    own = stroke_own(ch)
+    owner0 = np.where(own > 0, own - 1, np.argmin(dist, axis=0))
 
     lab = np.zeros((H, W), np.uint8)
-    lab[mask] = part_of[owner[mask]]
+    lab[mask] = part_of[owner0[mask]]
+    lab = smooth_labels(lab, mask)
 
     im = Image.fromarray(lab, "L")
     s = min(OUT / im.height, OUT / im.width)
