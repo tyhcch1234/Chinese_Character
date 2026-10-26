@@ -95,17 +95,21 @@ def stroke_field(ch):
             dr.ellipse([p[0] - 0.6, p[1] - 0.6, p[0] + 0.6, p[1] + 0.6], fill=255)
         dist[i] = ndimage.distance_transform_edt(np.array(layer) < 128)
 
-    # 逐筆輪廓歸屬：把每一筆自己的 hanzi 外形填色，後畫的蓋先畫的（全局仿射）。
-    # 註：曾嘗試「逐筆縮放＋平移配準」（v9），實測更差——目標區域來自最近中心線的
-    # Voronoi，等於把錯誤分區再放大，混色筆由 61 升至 83，已回退。
+    # 逐筆墨跡歸屬：墨跡內部測地分水嶺（seg.py）。
+    # 不再用 hanzi 外形——那是另一套字體（湖的「古」橫起點 x≈109，源流明體 x≈330），
+    # 輪廓必然覆蓋鄰筆墨跡，會切出楔形。分水嶺在兩筆相接的窄頸處分界（P4）。
     o0 = np.argmin(dist, axis=0) + 1
-    own_img = Image.new("I", (W, H), 0)
-    dr_own = ImageDraw.Draw(own_img)
-    for i, d in enumerate(data["strokes"]):
-        for poly in bp.svg_polys(d):
-            if len(poly) >= 3:
-                dr_own.polygon([to_px((x, BASELINE - y)) for x, y in poly], fill=i + 1)
-    own = np.array(own_img, np.int16)
+    try:
+        from seg import ink_labels
+        own, _ = ink_labels(mask, dist)
+    except Exception:                              # 沒有 skimage → 退回輪廓歸屬
+        own_img = Image.new("I", (W, H), 0)
+        dr_own = ImageDraw.Draw(own_img)
+        for i, d in enumerate(data["strokes"]):
+            for poly in bp.svg_polys(d):
+                if len(poly) >= 3:
+                    dr_own.polygon([to_px((x, BASELINE - y)) for x, y in poly], fill=i + 1)
+        own = np.array(own_img, np.int16)
     if (own[mask] == 0).any():
         own = np.where((own == 0) & mask, o0.astype(np.int16), own)
 

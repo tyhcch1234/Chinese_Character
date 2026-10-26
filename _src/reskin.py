@@ -21,11 +21,21 @@ import parts_auto as pa
 from pngmap import lab_on_mask
 
 SS = 4          # 超取樣倍數
+CANVAS = 800    # 與舊圖相同的畫布
+TARGET = 664    # 字高（舊圖實測 665/800）
 
 
 def reskin(path, parts, mask):
     H, W = mask.shape
     lab, _ = lab_on_mask(path, parts, mask)
+    # 舊圖接縫像素（雙線性混色）對不到任何部件色 → 用最近的有色像素補齊，
+    # 這樣「分區」完全沿用已驗收圖，只是不再有混色邊。
+    unknown = mask & (lab == 0)
+    if unknown.any():
+        from scipy import ndimage
+        idx = ndimage.distance_transform_edt(unknown, return_distances=False,
+                                             return_indices=True)
+        lab = np.where(unknown, lab[tuple(idx)], lab)
     big = np.repeat(np.repeat(lab, SS, 0), SS, 1)
     bigmask = np.repeat(np.repeat(mask, SS, 0), SS, 1)
 
@@ -34,11 +44,13 @@ def reskin(path, parts, mask):
         rgba[(big == k)] = (*pa.COLORS[p[1]], 255)
     rgba[~bigmask] = (0, 0, 0, 0)
 
-    s = min(bp.OUT / (H * SS), bp.OUT / (W * SS))
+    # 與舊圖同框：畫布 800、字高約 0.83×800（實測舊圖 bbox 665/800），
+    # 這樣發佈後字在框內的比例不變，用家不會覺得字變小了。
+    s = min(TARGET / (H * SS), TARGET / (W * SS))
     w, h = max(1, int(W * SS * s)), max(1, int(H * SS * s))
     tile = np.array(Image.fromarray(rgba).resize((w, h), Image.NEAREST))
-    canvas = np.zeros((bp.BOX, bp.BOX, 4), np.uint8)
-    y0, x0 = (bp.BOX - h) // 2, (bp.BOX - w) // 2
+    canvas = np.zeros((CANVAS, CANVAS, 4), np.uint8)
+    y0, x0 = (CANVAS - h) // 2, (CANVAS - w) // 2
     canvas[y0:y0 + h, x0:x0 + w] = tile
     return Image.fromarray(canvas)
 
