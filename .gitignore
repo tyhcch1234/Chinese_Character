@@ -3,3 +3,5 @@ _font/
 *.zip
 standalone.html
 publish/
+_data/geom2/
+_preview/
